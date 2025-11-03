@@ -18,64 +18,123 @@ public class ExamsController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
-        // ZOR: N+1 Problemi - Her exam için ayrı sorgu
+
         var result = await _examService.GetAllAsync();
-        if (result.Success)
+
+        // Null kontrolü
+        if (result == null)
         {
-            // ORTA: Null reference - result.Data null olabilir
-            var exams = result.Data.ToList();
-            // ZOR: N+1 - Her exam için ayrı sorgu (örnek - gerçek implementasyon service layer'da olabilir)
-            foreach (var exam in exams)
-            {
-                // Her exam için ayrı sorgu atılıyor - Include kullanılmamalıydı
-                var details = await _examService.GetByIdAsync(exam.Id);
-            }
-            return Ok(result);
+            return StatusCode(500, "Sunucu hatası: sonuç null döndü.");
         }
-        return BadRequest(result);
+
+        if (!result.Success)
+        {
+            return BadRequest(result.Message);
+        }
+
+        // N+1 problemi kaldırıldı, controller sadece veriyi döner
+        if (result.Data == null || !result.Data.Any())
+        {
+            return NotFound("Kayıt bulunamadı.");
+        }
+        return Ok(result);
+
     }
 
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(string id)
     {
-        var result = await _examService.GetByIdAsync(id);
-        if (result.Success)
+        if (string.IsNullOrWhiteSpace(id))
         {
-            return Ok(result);
+            return BadRequest("Geçersiz ID değeri.");
         }
-        return BadRequest(result);
+          
+        var result = await _examService.GetByIdAsync(id);
+
+        if (result == null)
+        {
+            return StatusCode(500, "Sunucu hatası: sonuç null döndü.");
+        }
+
+        if (!result.Success)
+        {
+            return NotFound(result.Message ?? "Sınav bulunamadı.");
+        }
+
+        return Ok(result);
+
     }
 
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateExamDto createExamDto)
     {
-        var result = await _examService.CreateAsync(createExamDto);
-        if (result.Success)
+        if (createExamDto == null)
         {
-            return Ok(result);
+            return BadRequest("Geçersiz veri gönderildi.");
         }
-        return BadRequest(result);
+
+        var result = await _examService.CreateAsync(createExamDto);
+
+        if (result == null)
+        {
+            return StatusCode(500, "Sunucu hatası: sonuç null döndü.");
+        }
+
+        if (!result.Success)
+        {
+            return BadRequest(result.Message);
+        }
+           
+        // Başarıyla oluşturuldu
+        return Ok(result);
+
     }
 
     [HttpPut]
     public async Task<IActionResult> Update([FromBody] UpdateExamDto updateExamDto)
     {
-        var result = await _examService.Update(updateExamDto);
-        if (result.Success)
+        if (updateExamDto == null)
         {
-            return Ok(result);
+            return BadRequest("Güncellenecek veri gönderilmedi.");
         }
-        return BadRequest(result);
+          
+        var result = await _examService.Update(updateExamDto);
+
+        if (result == null)
+        {
+            return StatusCode(500, "Sunucu hatası: sonuç null döndü.");
+        }
+
+        if (!result.Success)
+        {
+            return BadRequest(result.Message);
+        }
+           
+        return Ok(result);
+
     }
 
     [HttpDelete]
     public async Task<IActionResult> Delete([FromBody] DeleteExamDto deleteExamDto)
     {
-        var result = await _examService.Remove(deleteExamDto);
-        if (result.Success)
+        if (deleteExamDto == null)
         {
-            return Ok(result);
+            return BadRequest("Silinecek veri gönderilmedi.");
         }
-        return BadRequest(result);
+
+        var result = await _examService.Remove(deleteExamDto);
+
+        if (result == null)
+        {
+            return StatusCode(500, "Sunucu hatası: sonuç null döndü.");
+        }
+            
+        if (!result.Success)
+        {
+            return BadRequest(result.Message);
+        }
+
+        return Ok(result);
+
     }
 }
