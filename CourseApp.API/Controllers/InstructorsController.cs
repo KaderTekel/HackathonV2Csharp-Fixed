@@ -19,63 +19,136 @@ public class InstructorsController : ControllerBase
     public async Task<IActionResult> GetAll()
     {
         var result = await _instructorService.GetAllAsync();
-        if (result.Success)
+
+        // Null kontrolü
+        if (result == null)
         {
-            return Ok(result);
+            return StatusCode(500, "Sunucu hatası: servis null döndü.");
         }
-        return BadRequest(result);
+
+        // Servis başarısızsa
+        if (!result.Success)
+        {
+            return BadRequest(result.Message ?? "Eğitmen listesi getirilemedi.");
+        }
+
+        // Veri boşsa
+        if (result.Data == null || !result.Data.Any())
+        {
+            return NotFound("Hiç eğitmen bulunamadı.");
+        }
+
+        return Ok(result);
+
     }
 
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(string id)
     {
-        var result = await _instructorService.GetByIdAsync(id);
-        if (result.Success)
+        if (string.IsNullOrWhiteSpace(id))
         {
-            return Ok(result);
+            return BadRequest("Geçersiz ID değeri.");
         }
-        return BadRequest(result);
+
+        var result = await _instructorService.GetByIdAsync(id);
+
+        if (result == null)
+        {
+            return StatusCode(500, "Sunucu hatası: sonuç null döndü.");
+        }
+
+        if (!result.Success || result.Data == null)
+        {
+            return NotFound("Eğitmen bulunamadı.");
+        }
+      
+        return Ok(result);
+
     }
 
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreatedInstructorDto createdInstructorDto)
     {
-        // ORTA: Null check eksik - createdInstructorDto null olabilir
-        var instructorName = createdInstructorDto.Name; // Null reference riski
-        
-        // ORTA: Index out of range - instructorName boş/null ise
-        var firstChar = instructorName[0]; // IndexOutOfRangeException riski
-        
-        // ORTA: Tip dönüşüm hatası - string'i int'e direkt cast
-        var invalidAge = (int)instructorName; // ORTA: InvalidCastException
-        
-        var result = await _instructorService.CreateAsync(createdInstructorDto);
-        if (result.Success)
+        if (createdInstructorDto == null)
         {
-            return Ok(result);
+            return BadRequest("Geçersiz veri gönderildi.");
         }
-        return BadRequest(result);
+
+        if (string.IsNullOrWhiteSpace(createdInstructorDto.Name))
+        {
+            return BadRequest("Eğitmen adı boş olamaz.");
+        }
+
+        var result = await _instructorService.CreateAsync(createdInstructorDto);
+
+        if (result == null)
+        {
+            return StatusCode(500, "Sunucu hatası: sonuç null döndü.");
+        }
+
+        if (!result.Success)
+        {
+            return BadRequest(result.Message);
+        }
+
+        return Ok(result);
+
     }
 
     [HttpPut]
     public async Task<IActionResult> Update([FromBody] UpdatedInstructorDto updatedInstructorDto)
     {
-        var result = await _instructorService.Update(updatedInstructorDto);
-        if (result.Success)
+        if (updatedInstructorDto == null)
         {
-            return Ok(result);
+            return BadRequest("Geçersiz veri gönderildi.");
         }
-        return BadRequest(result);
+
+        if (string.IsNullOrWhiteSpace(updatedInstructorDto.Name))
+        {
+            return BadRequest("Eğitmen adı boş olamaz.");
+        }
+
+        var result = await _instructorService.Update(updatedInstructorDto);
+
+        if (result == null)
+        {
+            return StatusCode(500, "Sunucu hatası: sonuç null döndü.");
+        }
+
+        if (!result.Success)
+        {
+            return BadRequest(result.Message);
+        }
+
+        return Ok(result);
+
     }
 
     [HttpDelete]
     public async Task<IActionResult> Delete([FromBody] DeletedInstructorDto deletedInstructorDto)
     {
-        var result = await _instructorService.Remove(deletedInstructorDto);
-        if (result.Success)
+        if (deletedInstructorDto == null)
         {
-            return Ok(result);
+            return BadRequest("Geçersiz veri gönderildi.");
         }
-        return BadRequest(result);
+
+        if (string.IsNullOrWhiteSpace(deletedInstructorDto.Id))
+        {
+            return BadRequest("Geçersiz eğitmen ID değeri.");
+        }
+
+        var result = await _instructorService.Remove(deletedInstructorDto);
+
+        if (result == null)
+        {
+            return StatusCode(500, "Sunucu hatası: sonuç null döndü.");
+        }
+
+        if (!result.Success)
+        {
+            return BadRequest(result.Message);
+        }
+
+        return NoContent();
     }
 }
