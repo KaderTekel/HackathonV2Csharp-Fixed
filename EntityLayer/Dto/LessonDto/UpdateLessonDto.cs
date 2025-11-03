@@ -3,7 +3,7 @@
 public class UpdateLessonDto
 {
     public string Id { get; set; }
-    public string? Title { get; set; }
+    public string? Name { get; set; }
     public DateTime Date { get; set; }
     public byte Duration { get; set; }
     public string? Content { get; set; }

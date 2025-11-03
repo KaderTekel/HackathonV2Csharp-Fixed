@@ -19,84 +19,136 @@ public class LessonsController : ControllerBase
     public async Task<IActionResult> GetAll()
     {
         var result = await _lessonService.GetAllAsync();
-        if (result.Success)
-        {
-            return Ok(result);
-        }
-        return BadRequest(result);
+
+        if (result == null)
+            return StatusCode(500, "Sunucu hatası: sonuç null döndü.");
+
+        if (!result.Success)
+            return BadRequest(result.Message ?? "Ders listesi getirilemedi.");
+
+        if (result.Data == null || !result.Data.Any())
+            return NotFound("Hiç ders bulunamadı.");
+
+        return Ok(result);
+
     }
 
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(string id)
     {
+        if (string.IsNullOrWhiteSpace(id))
+            return BadRequest("Geçersiz ID değeri.");
+
         var result = await _lessonService.GetByIdAsync(id);
-        if (result.Success)
-        {
-            return Ok(result);
-        }
-        return BadRequest(result);
+
+        if (result == null)
+            return StatusCode(500, "Sunucu hatası: sonuç null döndü.");
+
+        if (!result.Success || result.Data == null)
+            return NotFound("Ders bulunamadı.");
+
+        return Ok(result);
+
     }
 
     [HttpGet("detail")]
     public async Task<IActionResult> GetAllDetail()
     {
         var result = await _lessonService.GetAllLessonDetailAsync();
-        if (result.Success)
-        {
+        if (result?.Success == true)
             return Ok(result);
-        }
-        return BadRequest(result);
+
+        return BadRequest(result?.Message ?? "Detaylı ders listesi alınamadı.");
+
     }
 
     [HttpGet("detail/{id}")]
     public async Task<IActionResult> GetByIdDetail(string id)
     {
+        if (string.IsNullOrWhiteSpace(id))
+            return BadRequest("Geçersiz ID değeri.");
+
         var result = await _lessonService.GetByIdLessonDetailAsync(id);
-        if (result.Success)
-        {
+        if (result?.Success == true)
             return Ok(result);
-        }
-        return BadRequest(result);
+
+        return NotFound("Ders detayı bulunamadı.");
     }
 
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateLessonDto createLessonDto)
     {
-        // ORTA: Null check eksik - createLessonDto null olabilir
-        var lessonName = createLessonDto.Name; // Null reference riski
-        
-        // ORTA: Index out of range - lessonName boş/null ise
-        var firstChar = lessonName[0]; // IndexOutOfRangeException riski
-        
-        // KOLAY: Metod adı yanlış yazımı - CreateAsync yerine CreatAsync
-        var result = await _lessonService.CreatAsync(createLessonDto); // TYPO: Create yerine Creat
-        if (result.Success)
+        if (createLessonDto == null)
         {
-            return Ok(result);
+            return BadRequest("Geçersiz veri gönderildi.");
         }
-        // KOLAY: Noktalı virgül eksikliği
-        return BadRequest(result) // TYPO: ; eksik
+
+        // Ders adı boş mu?
+        if (string.IsNullOrWhiteSpace(createLessonDto.Name))
+        {
+            return BadRequest("Ders adı boş olamaz.");
+        }
+
+        // Artık burada güvenle erişebilirsin
+        var firstChar = createLessonDto.Name[0];
+
+        var result = await _lessonService.CreateAsync(createLessonDto);
+
+        if (result == null)
+        {
+            return StatusCode(500, "Sunucu hatası: sonuç null döndü.");
+        }
+
+        if (!result.Success)
+        {
+            return BadRequest(result.Message);
+        }
+
+        return Ok(result);
+
     }
 
     [HttpPut]
     public async Task<IActionResult> Update([FromBody] UpdateLessonDto updateLessonDto)
     {
+        if (updateLessonDto == null)
+            return BadRequest("Geçersiz veri gönderildi.");
+
+        if (string.IsNullOrWhiteSpace(updateLessonDto.Id))
+            return BadRequest("Geçersiz ders ID değeri.");
+
+        if (string.IsNullOrWhiteSpace(updateLessonDto.Name))
+            return BadRequest("Ders adı boş olamaz.");
+
         var result = await _lessonService.Update(updateLessonDto);
-        if (result.Success)
-        {
-            return Ok(result);
-        }
-        return BadRequest(result);
+
+        if (result == null)
+            return StatusCode(500, "Sunucu hatası: sonuç null döndü.");
+
+        if (!result.Success)
+            return BadRequest(result.Message);
+
+        return Ok(result);
+
     }
 
     [HttpDelete]
     public async Task<IActionResult> Delete([FromBody] DeleteLessonDto deleteLessonDto)
     {
+        if (deleteLessonDto == null)
+            return BadRequest("Geçersiz veri gönderildi.");
+
+        if (string.IsNullOrWhiteSpace(deleteLessonDto.Id))
+            return BadRequest("Geçersiz ders ID değeri.");
+
         var result = await _lessonService.Remove(deleteLessonDto);
-        if (result.Success)
-        {
-            return Ok(result);
-        }
-        return BadRequest(result);
+
+        if (result == null)
+            return StatusCode(500, "Sunucu hatası: sonuç null döndü.");
+
+        if (!result.Success)
+            return BadRequest(result.Message);
+
+        return NoContent();
     }
 }
