@@ -110,33 +110,70 @@ public class ExamResultsController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateExamResultDto createExamResultDto)
     {
-        var result = await _examResultService.CreateAsync(createExamResultDto);
-        if (result.Success)
+        if (createExamResultDto == null)
         {
-            return Ok(result);
+            return BadRequest("Geçersiz veri gönderildi.");
         }
-        return BadRequest(result);
+
+        var result = await _examResultService.CreateAsync(createExamResultDto);
+        if (result is null)
+        {
+            return StatusCode(500, "Sunucu hatası: sonuç null döndü.");
+        }
+
+        if (!result.Success)
+        {
+            return BadRequest(result.Message);
+
+        }
+        return Ok(result);
     }
 
     [HttpPut]
     public async Task<IActionResult> Update([FromBody] UpdateExamResultDto updateExamResultDto)
     {
-        var result = await _examResultService.Update(updateExamResultDto);
-        if (result.Success)
+        if (updateExamResultDto == null)
         {
-            return Ok(result);
+            return BadRequest("Geçersiz veri gönderildi.");
         }
-        return BadRequest(result);
+
+        var result = await _examResultService.Update(updateExamResultDto);
+
+        if (result is null)
+        {
+            return StatusCode(500, "Sunucu hatası: sonuç null döndü.");
+        } 
+
+        if (!result.Success)
+        {
+            return NotFound("Güncellenecek sınav sonucu bulunamadı.");
+        }
+
+        return Ok(result);
+
     }
 
     [HttpDelete]
     public async Task<IActionResult> Delete([FromBody] DeleteExamResultDto deleteExamResultDto)
     {
-        var result = await _examResultService.Remove(deleteExamResultDto);
-        if (result.Success)
+        if (deleteExamResultDto == null)
         {
-            return Ok(result);
+            return BadRequest("Geçersiz veri gönderildi.");
         }
-        return BadRequest(result);
+
+        var result = await _examResultService.Remove(deleteExamResultDto);
+
+        if (result is null)
+        {
+            return StatusCode(500, "Sunucu hatası: sonuç null döndü.");
+        }
+
+        if (!result.Success)
+        {
+            return NotFound("Silinecek sınav sonucu bulunamadı.");
+        }
+            
+        // 204 - Başarılı silme, içerik yok
+        return NoContent();
     }
 }
