@@ -38,12 +38,25 @@ public class ExamResultsController : ControllerBase
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(string id)
     {
-        var result = await _examResultService.GetByIdAsync(id);
-        if (result.Success)
+        if (string.IsNullOrWhiteSpace(id))
         {
-            return Ok(result);
+            return BadRequest("Geçersiz ID değeri.");
         }
-        return BadRequest(result);
+        
+        var result = await _examResultService.GetByIdAsync(id);
+
+        if (result is null)
+        {
+            return StatusCode(500, "Sunucu hatası: sonuç null döndü.");
+        }
+
+        if (!result.Success)
+        {
+            return NotFound($"'{id}' numaralı sınav sonucu bulunamadı.");
+        }
+
+        return Ok(result);
+
     }
 
     [HttpGet("detail")]
