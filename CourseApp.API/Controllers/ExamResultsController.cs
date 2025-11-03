@@ -63,22 +63,48 @@ public class ExamResultsController : ControllerBase
     public async Task<IActionResult> GetAllDetail()
     {
         var result = await _examResultService.GetAllExamResultDetailAsync();
-        if (result.Success)
+
+        // Servis null dönerse
+        if (result is null)
         {
-            return Ok(result);
+            return StatusCode(500, "Sunucu hatası: sonuç null döndü.");
         }
-        return BadRequest(result);
+           
+        // Veri yoksa
+        if (!result.Success || result.Data == null || !result.Data.Any())
+        {
+            return NotFound("Herhangi bir detaylı sınav sonucu bulunamadı.");
+        }
+           
+        return Ok(result);
+
     }
 
     [HttpGet("detail/{id}")]
     public async Task<IActionResult> GetByIdDetail(string id)
     {
-        var result = await _examResultService.GetByIdExamResultDetailAsync(id);
-        if (result.Success)
+        // Parametre kontrolü
+        if (string.IsNullOrWhiteSpace(id))
         {
-            return Ok(result);
+            return BadRequest("Geçersiz ID değeri.");
         }
-        return BadRequest(result);
+
+        var result = await _examResultService.GetByIdExamResultDetailAsync(id);
+
+        // Servis null dönerse
+        if (result is null)
+        {
+            return StatusCode(500, "Sunucu hatası: sonuç null döndü.");
+        }
+
+        // Kayıt bulunamazsa
+        if (!result.Success)
+        {
+            return NotFound($"'{id}' numaralı sınav detayı bulunamadı.");
+        }  
+
+        return Ok(result);
+
     }
 
     [HttpPost]
