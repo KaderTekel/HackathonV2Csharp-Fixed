@@ -1,11 +1,10 @@
 ﻿using AutoMapper;
-using CourseApp.EntityLayer.Dto.RegistrationDto;
 using CourseApp.EntityLayer.Dto.StudentDto;
 using CourseApp.EntityLayer.Entity;
 
 namespace CourseApp.ServiceLayer.Mapping;
 
-public class StudentMapping:Profile
+public class StudentMapping : Profile
 {
     public StudentMapping()
     {
@@ -14,6 +13,5 @@ public class StudentMapping:Profile
         CreateMap<Student, CreateStudentDto>().ReverseMap();
         CreateMap<Student, UpdateStudentDto>().ReverseMap();
         CreateMap<Student, DeleteStudentDto>().ReverseMap();
-        CreateMap<Student, NonExistentStudentMappingDto>().ReverseMap();
     }
 }
