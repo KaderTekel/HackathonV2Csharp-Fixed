@@ -9,8 +9,9 @@ public class ExamMapping:Profile
     public ExamMapping()
     {
         CreateMap<Exam,GetAllExamDto>().ReverseMap();
+        CreateMap<Exam, GetByIdExamDto>().ReverseMap();
         CreateMap<Exam,CreateExamDto>().ReverseMap();
         CreateMap<Exam,DeleteExamDto>().ReverseMap();
-        CreateMap<Exam, MissingMappingDto>().ReverseMap();
+        CreateMap<Exam,UpdateExamDto>().ReverseMap();
     }
 }
