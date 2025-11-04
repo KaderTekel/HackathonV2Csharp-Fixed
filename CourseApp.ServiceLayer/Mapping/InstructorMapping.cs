@@ -4,13 +4,14 @@ using CourseApp.EntityLayer.Entity;
 
 namespace CourseApp.ServiceLayer.Mapping;
 
-public class InstructorMapping:Profile
+public class InstructorMapping : Profile
 {
     public InstructorMapping()
     {
-        CreateMap<Instructor,GetAllInstructorDto>().ReverseMap();
-        CreateMap<Instructor,GetByIdInstructorDto>().ReverseMap();
-        CreateMap<Instructor,DeletedInstructorDto>().ReverseMap();
-        CreateMap<Instructor, UndefinedMappingDto>();
+        CreateMap<Instructor, GetAllInstructorDto>().ReverseMap();
+        CreateMap<Instructor, GetByIdInstructorDto>().ReverseMap();
+        CreateMap<Instructor, CreatedInstructorDto>().ReverseMap();
+        CreateMap<Instructor, UpdatedInstructorDto>().ReverseMap();
+        CreateMap<Instructor, DeletedInstructorDto>().ReverseMap();
     }
 }
