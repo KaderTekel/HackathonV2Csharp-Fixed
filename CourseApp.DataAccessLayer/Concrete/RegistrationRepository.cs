@@ -25,7 +25,7 @@ public class RegistrationRepository : GenericRepository<Registration>, IRegistra
                     .Include(r => r.Student);
     }
 
-    public async Task<Registration> GetByIdRegistrationDetail(string id,bool track = true)
+    public async Task<Registration> GetByIdRegistrationDetailAsync(string id,bool track = true)
     {
         var query = _dbSet.AsQueryable();
         if (!track)
