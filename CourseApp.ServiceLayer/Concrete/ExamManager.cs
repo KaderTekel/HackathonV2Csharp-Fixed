@@ -23,67 +23,96 @@ public class ExamManager : IExamService
     public async Task<IDataResult<IEnumerable<GetAllExamDto>>> GetAllAsync(bool track = true)
     {
         // ZOR: Async/await anti-pattern - async metot içinde senkron ToList kullanımı
-        var examList = _unitOfWork.Exams.GetAll(false).ToList(); // ZOR: ToListAsync kullanılmalıydı
-        // KOLAY: Değişken adı typo - examtListMapping yerine examListMapping
-        var examtListMapping = _mapper.Map<IEnumerable<GetAllExamDto>>(examList); // TYPO
+        var examList = _unitOfWork.Exams.GetAll(track).ToListAsync(); // ZOR: ToListAsync kullanılmalıydı
+        // KOLAY: Değişken adı typo - examListMapping yerine examListMapping
+        var examListMapping = _mapper.Map<IEnumerable<GetAllExamDto>>(examList); // TYPO
         
-        // ORTA: Index out of range - examtListMapping boş olabilir
-        var firstExam = examtListMapping.ToList()[0]; // IndexOutOfRangeException riski
+        // ORTA: Index out of range - examListMapping boş olabilir
+        // IndexOutOfRangeException riski
         
-        return new SuccessDataResult<IEnumerable<GetAllExamDto>>(examtListMapping, ConstantsMessages.ExamListSuccessMessage);
+        return new SuccessDataResult<IEnumerable<GetAllExamDto>>(examListMapping, ConstantsMessages.ExamListSuccessMessage);
     }
-
-    public void NonExistentMethod()
-    {
-        var x = new MissingType();
-    }
-
     public async Task<IDataResult<GetByIdExamDto>> GetByIdAsync(string id, bool track = true)
     {
-        var hasExam = await _unitOfWork.Exams.GetByIdAsync(id, false);
+        if (string.IsNullOrWhiteSpace(id))
+            return new ErrorDataResult<GetByIdExamDto>(null, "Geçersiz sınav ID değeri.");
+
+        var hasExam = await _unitOfWork.Exams.GetByIdAsync(id, track);
+
+        if (hasExam == null)
+            return new ErrorDataResult<GetByIdExamDto>(null, "Belirtilen ID'ye ait sınav bulunamadı.");
+
         var examResultMapping = _mapper.Map<GetByIdExamDto>(hasExam);
+
         return new SuccessDataResult<GetByIdExamDto>(examResultMapping, ConstantsMessages.ExamGetByIdSuccessMessage);
     }
     public async Task<IResult> CreateAsync(CreateExamDto entity)
     {
-        // ORTA: Null check eksik - entity null olabilir
+        if (entity == null)
+            return new ErrorResult("Geçersiz veri gönderildi.");
+
         var addedExamMapping = _mapper.Map<Exam>(entity);
-        
-        // ORTA: Null reference - addedExamMapping null olabilir
-        var examName = addedExamMapping.Name; // Null reference riski
-        
-        // ZOR: Async/await anti-pattern - async metot içinde .Wait() kullanımı deadlock'a sebep olabilir
-        _unitOfWork.Exams.CreateAsync(addedExamMapping).Wait(); // ZOR: Anti-pattern - await kullanılmalıydı
+
+        if (addedExamMapping == null)
+            return new ErrorResult("Sınav verisi oluşturulamadı.");
+
+        if (string.IsNullOrWhiteSpace(addedExamMapping.Name))
+            return new ErrorResult("Sınav adı boş olamaz.");
+
+        await _unitOfWork.Exams.CreateAsync(addedExamMapping);
+
         var result = await _unitOfWork.CommitAsync();
+
         if (result > 0)
-        {
             return new SuccessResult(ConstantsMessages.ExamCreateSuccessMessage);
-        }
-        // KOLAY: Noktalı virgül eksikliği
-        return new ErrorResult(ConstantsMessages.ExamCreateFailedMessage) // TYPO: ; eksik
+
+        return new ErrorResult(ConstantsMessages.ExamCreateFailedMessage);
     }
+
 
     public async Task<IResult> Remove(DeleteExamDto entity)
     {
-        var deletedExamMapping = _mapper.Map<Exam>(entity); // ORTA SEVİYE: ID kontrolü eksik - entity ID'si null/empty olabilir
-        _unitOfWork.Exams.Remove(deletedExamMapping);
-        var result = await _unitOfWork.CommitAsync(); // ZOR SEVİYE: Transaction yok - başka işlemler varsa rollback olmaz
+        if (entity == null)
+            return new ErrorResult("Geçersiz veri gönderildi.");
+
+        if (string.IsNullOrWhiteSpace(entity.Id))
+            return new ErrorResult("Geçersiz sınav ID değeri.");
+
+        var existingExam = await _unitOfWork.Exams.GetByIdAsync(entity.Id);
+        if (existingExam == null)
+            return new ErrorResult("Silinecek sınav bulunamadı.");
+
+        _unitOfWork.Exams.Remove(existingExam);
+
+        var result = await _unitOfWork.CommitAsync();
+
         if (result > 0)
-        {
             return new SuccessResult(ConstantsMessages.ExamDeleteSuccessMessage);
-        }
+
         return new ErrorResult(ConstantsMessages.ExamDeleteFailedMessage);
     }
 
     public async Task<IResult> Update(UpdateExamDto entity)
     {
-        var updatedExamMapping = _mapper.Map<Exam>(entity);
-        _unitOfWork.Exams.Update(updatedExamMapping);
+        if (entity == null)
+            return new ErrorResult("Geçersiz veri gönderildi.");
+
+        if (string.IsNullOrWhiteSpace(entity.Id))
+            return new ErrorResult("Geçersiz sınav ID değeri.");
+
+        var existingExam = await _unitOfWork.Exams.GetByIdAsync(entity.Id);
+        if (existingExam == null)
+            return new ErrorResult("Güncellenecek sınav bulunamadı.");
+
+        existingExam.Name = entity.Name;
+        existingExam.Date = entity.Date;
+
+        _unitOfWork.Exams.Update(existingExam);
         var result = await _unitOfWork.CommitAsync();
+
         if (result > 0)
-        {
             return new SuccessResult(ConstantsMessages.ExamUpdateSuccessMessage);
-        }
+
         return new ErrorResult(ConstantsMessages.ExamUpdateFailedMessage);
     }
 }
