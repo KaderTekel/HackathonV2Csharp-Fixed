@@ -1,5 +1,5 @@
 ﻿using CourseApp.EntityLayer.Entity;
-using System.Collections;
+using System.Linq;
 
 namespace CourseApp.DataAccessLayer.Abstract;
 
