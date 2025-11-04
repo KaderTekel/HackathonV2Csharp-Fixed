@@ -14,16 +14,10 @@ public class CourseRepository : GenericRepository<Course>, ICourseRepository
 
     public IQueryable<Course> GetAllCourseDetail(bool track = true)
     {
-        var query = _context.Courses.AsQueryable();
-        if(!track)
-        {
-            query = query.AsNoTracking();
-        }
-        return query.Include(c => c.Instructor);
-    }
+        var query = _context.Courses
+        .Include(c => c.Instructor)
+        .AsQueryable();
 
-    public void InvalidMethod()
-    {
-        var x = MissingCourseHelper.Process();
+        return track ? query : query.AsNoTracking();
     }
 }
