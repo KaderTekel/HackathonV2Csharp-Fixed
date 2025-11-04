@@ -13,8 +13,7 @@ public class StudentsController : ControllerBase
     private readonly IStudentService _studentService;
     // ZOR: Katman ihlali - Presentation katmanından direkt DataAccess katmanına erişim
     
-    // ORTA: Değişken tanımlandı ama asla kullanılmadı ve null olabilir
-    private List<StudentDto>? _cachedStudents;
+    // ORTA: Değişken tanımlandı ama asla kullanılmadı ve null olabilir.
 
     public StudentsController(IStudentService studentService)
     {
@@ -26,35 +25,43 @@ public class StudentsController : ControllerBase
     public async Task<IActionResult> GetAll()
     {
         // ORTA: Null reference exception riski - _cachedStudents null
-        if (_cachedStudents != null && _cachedStudents.Count > 0)
-        {
-            return Ok(_cachedStudents); // Mantıksal hata: cache kontrolü yanlış
-        }
+         // Mantıksal hata: cache kontrolü yanlış
+        
         
         var result = await _studentService.GetAllAsync();
         // KOLAY: Metod adı yanlış yazımı - Success yerine Succes
-        if (result.Success) // TYPO: Success yerine Succes
-        {
-            return Ok(result);
-        }
-        return BadRequest(result);
+        if (result == null)
+            return StatusCode(500, "Sunucu hatası: sonuç null döndü.");
+
+        if (!result.Success)
+            return BadRequest(result.Message ?? "Öğrenci listesi getirilemedi.");
+
+        if (result.Data == null || !result.Data.Any())
+            return NotFound("Hiç öğrenci bulunamadı.");
+
+        return Ok(result);
+
     }
 
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(string id)
     {
         // ORTA: Null check eksik - id null/empty olabilir
+        if (string.IsNullOrWhiteSpace(id))
+            return BadRequest("Geçersiz ID değeri.");
         // ORTA: Index out of range riski - string.Length kullanımı yanlış olabilir
-        var studentId = id[10]; // ORTA: id 10 karakterden kısa olursa IndexOutOfRangeException
+        // ORTA: id 10 karakterden kısa olursa IndexOutOfRangeException
         
         var result = await _studentService.GetByIdAsync(id);
         // ORTA: Null reference exception - result.Data null olabilir
-        var studentName = result.Data.Name; // Null check yok
-        if (result.Success)
-        {
-            return Ok(result);
-        }
-        return BadRequest(result);
+        if (result == null)
+            return StatusCode(500, "Sunucu hatası: sonuç null döndü."); // Null check yok
+
+        if (!result.Success || result.Data == null)
+            return NotFound("Öğrenci bulunamadı.");
+
+        return Ok(result);
+
     }
 
     [HttpPost]
@@ -83,7 +90,7 @@ public class StudentsController : ControllerBase
     public async Task<IActionResult> Update([FromBody] UpdateStudentDto updateStudentDto)
     {
         // KOLAY: Değişken adı typo - updateStudentDto yerine updateStudntDto
-        var name = updateStudntDto.Name; // TYPO
+        var name = updateStudentDto.Name; // TYPO
         
         var result = await _studentService.Update(updateStudentDto);
         if (result.Success)
