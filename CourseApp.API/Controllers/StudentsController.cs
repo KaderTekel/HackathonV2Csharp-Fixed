@@ -68,36 +68,52 @@ public class StudentsController : ControllerBase
     public async Task<IActionResult> Create([FromBody] CreateStudentDto createStudentDto)
     {
         // ORTA: Null check eksik
+        if (createStudentDto == null)
+            return BadRequest("Geçersiz veri gönderildi.");
+
+        if (string.IsNullOrWhiteSpace(createStudentDto.Name))
+            return BadRequest("Öğrenci adı boş olamaz.");
+
+
+
         // ORTA: Tip dönüşüm hatası - string'i int'e direkt atama
-        var invalidAge = (int)createStudentDto.Name; // ORTA: InvalidCastException - string int'e dönüştürülemez
-        
+        // ORTA: InvalidCastException - string int'e dönüştürülemez
+
         // ZOR: Katman ihlali - Controller'dan direkt DbContext'e erişim (Business Logic'i bypass ediyor)
-        var directDbAccess = _dbContext.Students.Add(new CourseApp.EntityLayer.Entity.Student 
-        { 
-            Name = createStudentDto.Name 
-        });
-        
         var result = await _studentService.CreateAsync(createStudentDto);
-        if (result.Success)
+
+        if(result == null)
+        return StatusCode(500, "Sunucu hatası: sonuç null döndü.");
+
+        if (!result.Success)
         {
-            return Ok(result);
+            return BadRequest(result.Message);
         }
-        // KOLAY: Noktalı virgül eksikliği
-        return BadRequest(result); // TYPO: ; eksik
+        return Ok(result);
+
     }
 
     [HttpPut]
     public async Task<IActionResult> Update([FromBody] UpdateStudentDto updateStudentDto)
     {
+        if (updateStudentDto == null)
+            return BadRequest("Geçersiz veri gönderildi.");
+
+        if (string.IsNullOrWhiteSpace(updateStudentDto.Name))
+            return BadRequest("Öğrenci adı boş olamaz.");
+
         // KOLAY: Değişken adı typo - updateStudentDto yerine updateStudntDto
-        var name = updateStudentDto.Name; // TYPO
+        // TYPO
         
         var result = await _studentService.Update(updateStudentDto);
-        if (result.Success)
-        {
-            return Ok(result);
-        }
-        return BadRequest(result);
+        if (result == null)
+            return StatusCode(500, "Sunucu hatası: sonuç null döndü.");
+
+        if (!result.Success)
+            return BadRequest(result.Message);
+
+        return Ok(result);
+
     }
 
     [HttpDelete]
