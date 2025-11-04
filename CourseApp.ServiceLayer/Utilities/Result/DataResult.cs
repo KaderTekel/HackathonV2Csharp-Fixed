@@ -4,20 +4,21 @@ public class DataResult<T> : Result, IDataResult<T>
 {
     public T? Data { get; }
 
-
-
-    public DataResult(T data,bool isSuccess):base(isSuccess)
+    public DataResult(T? data, bool isSuccess)
+        : base(isSuccess)
     {
-        Data = data;    
+        Data = data;
     }
 
-    public DataResult(T data,string message):base(default,message)
+    public DataResult(T? data, string message)
+        : base(false, message) // default yerine false olarak düzeltildi
     {
-        Data = data;  
+        Data = data;
     }
 
-    public DataResult(T data,bool isSuccess,string message):base(isSuccess,message)
+    public DataResult(T? data, bool isSuccess, string message)
+        : base(isSuccess, message)
     {
-        Data = data;    
+        Data = data;
     }
 }
