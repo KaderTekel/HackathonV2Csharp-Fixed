@@ -12,7 +12,6 @@ namespace CourseApp.ServiceLayer.Concrete;
 
 public class ExamResultManager : IExamResultService
 {
-
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
 
@@ -24,93 +23,103 @@ public class ExamResultManager : IExamResultService
 
     public async Task<IDataResult<IEnumerable<GetAllExamResultDto>>> GetAllAsync(bool track = true)
     {
-        var examResultList = await _unitOfWork.ExamResults.GetAll(false).ToListAsync();
-        var examResultListMapping = _mapper.Map<IEnumerable<GetAllExamResultDto>>(examResultList);
-        if (!examResultList.Any())
-        {
+        var examResultList = await _unitOfWork.ExamResults.GetAll(track).ToListAsync();
+        if (examResultList == null || !examResultList.Any())
             return new ErrorDataResult<IEnumerable<GetAllExamResultDto>>(null, ConstantsMessages.ExamResultListFailedMessage);
-        }
-        return new SuccessDataResult<IEnumerable<GetAllExamResultDto>>(examResultListMapping, ConstantsMessages.ExamResultListSuccessMessage);
 
+        var mappedList = _mapper.Map<IEnumerable<GetAllExamResultDto>>(examResultList);
+        return new SuccessDataResult<IEnumerable<GetAllExamResultDto>>(mappedList, ConstantsMessages.ExamResultListSuccessMessage);
     }
 
     public async Task<IDataResult<GetByIdExamResultDto>> GetByIdAsync(string id, bool track = true)
     {
-        var hasExamResult = await _unitOfWork.ExamResults.GetByIdAsync(id, false);
-        var examResultMapping = _mapper.Map<GetByIdExamResultDto>(hasExamResult);
-        return new SuccessDataResult<GetByIdExamResultDto>(examResultMapping, ConstantsMessages.ExamResultListSuccessMessage);
+        if (string.IsNullOrWhiteSpace(id))
+            return new ErrorDataResult<GetByIdExamResultDto>(null, "Geçersiz ID değeri.");
+
+        var hasExamResult = await _unitOfWork.ExamResults.GetByIdAsync(id, track);
+        if (hasExamResult == null)
+            return new ErrorDataResult<GetByIdExamResultDto>(null, "Sonuç bulunamadı.");
+
+        var mappedResult = _mapper.Map<GetByIdExamResultDto>(hasExamResult);
+        return new SuccessDataResult<GetByIdExamResultDto>(mappedResult, ConstantsMessages.ExamResultListSuccessMessage);
     }
 
     public async Task<IResult> CreateAsync(CreateExamResultDto entity)
     {
-        // ORTA: Null check eksik - entity null olabilir
-        var addedExamResultMapping = _mapper.Map<ExamResult>(entity);
-        // ORTA: Null reference - addedExamResultMapping null olabilir
-        var score = addedExamResultMapping.Score; // Null reference riski
-        
-        await _unitOfWork.ExamResults.CreateAsync(addedExamResultMapping);
-        // ZOR: Async/await anti-pattern - GetAwaiter().GetResult() deadlock'a sebep olabilir
-        var result = _unitOfWork.CommitAsync().GetAwaiter().GetResult(); // ZOR: Anti-pattern
-        if (result > 0)
-        {
-            return new SuccessResult(ConstantsMessages.ExamResultCreateSuccessMessage);
-        }
-        // KOLAY: Noktalı virgül eksikliği
-        return new ErrorResult(ConstantsMessages.ExamResultCreateFailedMessage) // TYPO: ; eksik
+        if (entity == null)
+            return new ErrorResult("Geçersiz veri gönderildi.");
+
+        var mapped = _mapper.Map<ExamResult>(entity);
+        if (mapped == null)
+            return new ErrorResult("Dönüştürme başarısız.");
+
+        await _unitOfWork.ExamResults.CreateAsync(mapped);
+        var result = await _unitOfWork.CommitAsync();
+        return result > 0
+             ? new SuccessResult(ConstantsMessages.ExamResultCreateSuccessMessage)
+             : new ErrorResult(ConstantsMessages.ExamResultCreateFailedMessage);
     }
 
     public async Task<IResult> Remove(DeleteExamResultDto entity)
     {
-        var deletedExamResultMapping = _mapper.Map<ExamResult>(entity);
-        _unitOfWork.ExamResults.Remove(deletedExamResultMapping);
+        if (entity == null || string.IsNullOrWhiteSpace(entity.Id))
+            return new ErrorResult("Geçersiz sınav sonucu ID değeri.");
+
+        var mapped = _mapper.Map<ExamResult>(entity);
+        _unitOfWork.ExamResults.Remove(mapped);
         var result = await _unitOfWork.CommitAsync();
-        if (result > 0)
-        {
-            return new SuccessResult(ConstantsMessages.ExamResultDeleteSuccessMessage);
-        }
-        return new ErrorResult(ConstantsMessages.ExamResultDeleteFailedMessage);
+
+        return result > 0
+            ? new SuccessResult(ConstantsMessages.ExamResultDeleteSuccessMessage)
+            : new ErrorResult(ConstantsMessages.ExamResultDeleteFailedMessage);
     }
 
     public async Task<IResult> Update(UpdateExamResultDto entity)
     {
-        var updatedExamResultMapping = _mapper.Map<ExamResult>(entity);
-        _unitOfWork.ExamResults.Update(updatedExamResultMapping);
+        if (entity == null || string.IsNullOrWhiteSpace(entity.Id))
+            return new ErrorResult("Geçersiz güncelleme verisi.");
+
+        var existing = await _unitOfWork.ExamResults.GetByIdAsync(entity.Id);
+        if (existing == null)
+            return new ErrorResult("Güncellenecek sonuç bulunamadı.");
+
+        existing.Grade = entity.Grade;
+        existing.StudentID = entity.StudentID;
+        existing.ExamID = entity.ExamID;
+
+        _unitOfWork.ExamResults.Update(existing);
         var result = await _unitOfWork.CommitAsync();
-        if (result > 0)
-        {
-            return new SuccessResult(ConstantsMessages.ExamResultUpdateSuccessMessage);
-        }
-        return new ErrorResult(ConstantsMessages.ExamResultUpdateFailedMessage);
+
+        return result > 0
+            ? new SuccessResult(ConstantsMessages.ExamResultUpdateSuccessMessage)
+            : new ErrorResult(ConstantsMessages.ExamResultUpdateFailedMessage);
     }
 
     public async Task<IDataResult<IEnumerable<GetAllExamResultDetailDto>>> GetAllExamResultDetailAsync(bool track = true)
     {
-        // ZOR: N+1 Problemi - Include kullanılmamış, lazy loading aktif
-        var examResultList = await _unitOfWork.ExamResults.GetAllExamResultDetail(false).ToListAsync();
-        
-        // ZOR: N+1 - Her examResult için Student ve Exam ayrı sorgu ile çekiliyor
-        // Örnek: examResult.Student?.Name ve examResult.Exam?.Name her iterasyonda DB sorgusu
-        
-        if (!examResultList.Any())
-        {
-            return new ErrorDataResult<IEnumerable<GetAllExamResultDetailDto>>(null, ConstantsMessages.ExamResultListFailedMessage);
-        }
+        var examResultList = await _unitOfWork.ExamResults
+            .GetAllExamResultDetail(track)
+            .Include(x => x.Student)
+            .Include(x => x.Exam)
+            .ToListAsync();
 
-        var examResultListMapping = _mapper.Map<IEnumerable<GetAllExamResultDetailDto>>(examResultList);
-        
-        // ORTA: Index out of range - examResultListMapping boş olabilir
-        var firstResult = examResultListMapping.ToList()[0]; // IndexOutOfRangeException riski
-        
-        return new SuccessDataResult<IEnumerable<GetAllExamResultDetailDto>>(examResultListMapping, ConstantsMessages.ExamResultListSuccessMessage);
+        if (examResultList == null || !examResultList.Any())
+            return new ErrorDataResult<IEnumerable<GetAllExamResultDetailDto>>(null, ConstantsMessages.ExamResultListFailedMessage);
+
+        var mappedList = _mapper.Map<IEnumerable<GetAllExamResultDetailDto>>(examResultList);
+        return new SuccessDataResult<IEnumerable<GetAllExamResultDetailDto>>(mappedList, ConstantsMessages.ExamResultListSuccessMessage);
     }
 
     public async Task<IDataResult<GetByIdExamResultDetailDto>> GetByIdExamResultDetailAsync(string id, bool track = true)
     {
-        throw new NotImplementedException();
-    }
+        if (string.IsNullOrWhiteSpace(id))
+            return new ErrorDataResult<GetByIdExamResultDetailDto>(null, "Geçersiz ID değeri.");
 
-    private void CallMissingMethod()
-    {
-        MissingMethodHelper.Execute();
+        var detail = await _unitOfWork.ExamResults.GetByIdExamResultDetailAsync(id, track);
+        if (detail == null)
+            return new ErrorDataResult<GetByIdExamResultDetailDto>(null, "Sınav sonucu detayı bulunamadı.");
+
+        var mapped = _mapper.Map<GetByIdExamResultDetailDto>(detail);
+        return new SuccessDataResult<GetByIdExamResultDetailDto>(mapped, "Sınav sonucu detayı başarıyla getirildi.");
     }
 }
