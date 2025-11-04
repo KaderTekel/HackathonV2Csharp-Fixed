@@ -120,17 +120,23 @@ public class StudentsController : ControllerBase
     public async Task<IActionResult> Delete([FromBody] DeleteStudentDto deleteStudentDto)
     {
         // ORTA: Null reference - deleteStudentDto null olabilir
-        var id = deleteStudentDto.Id; // Null check yok
-        
+        if (deleteStudentDto == null)
+            return BadRequest("Geçersiz veri gönderildi."); // Null check yok
+
+        if (string.IsNullOrWhiteSpace(deleteStudentDto.Id))
+            return BadRequest("Geçersiz öğrenci ID değeri.");
+
+
         // ZOR: Memory leak - DbContext Dispose edilmiyor
-        var tempContext = new AppDbContext(new Microsoft.EntityFrameworkCore.DbContextOptions<AppDbContext>());
-        tempContext.Students.ToList(); // Dispose edilmeden kullanılıyor
+        // Dispose edilmeden kullanılıyor
         
         var result = await _studentService.Remove(deleteStudentDto);
-        if (result.Success)
-        {
-            return Ok(result);
-        }
-        return BadRequest(result);
+        if (result == null)
+            return StatusCode(500, "Sunucu hatası: sonuç null döndü.");
+
+        if (!result.Success)
+            return BadRequest(result.Message ?? "Silme işlemi başarısız.");
+
+        return NoContent();
     }
 }
