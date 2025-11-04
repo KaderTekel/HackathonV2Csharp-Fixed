@@ -13,7 +13,7 @@ public class ExamResultRepository : GenericRepository<ExamResult>, IExamResultRe
         _context = context;
     }
 
-    public IQueryable<ExamResult> GetAllExamResultDetail(bool track = true)
+    public IQueryable<ExamResult> GetAllExamResultDetails(bool track = true)
     {
         var query = _dbSet.AsQueryable();
         if(!track)

@@ -98,7 +98,7 @@ public class ExamResultManager : IExamResultService
     public async Task<IDataResult<IEnumerable<GetAllExamResultDetailDto>>> GetAllExamResultDetailAsync(bool track = true)
     {
         var examResultList = await _unitOfWork.ExamResults
-            .GetAllExamResultDetail(track)
+            .GetAllExamResultDetails(track)
             .Include(x => x.Student)
             .Include(x => x.Exam)
             .ToListAsync();
