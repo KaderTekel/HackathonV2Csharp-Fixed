@@ -51,25 +51,39 @@ public class CourseManager : ICourseService
     public async Task<IDataResult<GetByIdCourseDto>> GetByIdAsync(string id, bool track = true)
     {
         // ORTA: Null check eksik - id null/empty olabilir
+        if (string.IsNullOrWhiteSpace(id))
+            return new ErrorDataResult<GetByIdCourseDto>(null, "Geçersiz ID değeri.");
+
         // ORTA: Null reference exception - hasCourse null olabilir ama kontrol edilmiyor
         var hasCourse = await _unitOfWork.Courses.GetByIdAsync(id, track);
+        if (hasCourse == null)
+            return new ErrorDataResult<GetByIdCourseDto>(null, "Kurs bulunamadı.");
 
         // ORTA: Null reference - hasCourse null ise NullReferenceException
         var course = new GetByIdCourseDto
         {
-            CourseName = hasCourse.CourseName, // Null reference riski
+            Id = hasCourse.ID,
+            CourseName = hasCourse.CourseName,
             CreatedDate = hasCourse.CreatedDate,
             EndDate = hasCourse.EndDate,
             InstructorID = hasCourse.InstructorID,
             IsActive = hasCourse.IsActive,
-            StartDate = hasCourse.StartDate,
-            Id = hasCourse.ID
+            StartDate = hasCourse.StartDate
         };
 
         return new SuccessDataResult<GetByIdCourseDto>(course, ConstantsMessages.CourseGetByIdSuccessMessage);
     }
     public async Task<IResult> CreateAsync(CreateCourseDto entity)
     {
+        if (entity == null)
+            return new ErrorResult("Geçersiz veri gönderildi.");
+
+        if (string.IsNullOrWhiteSpace(entity.CourseName))
+            return new ErrorResult("Kurs adı boş olamaz.");
+
+        if (entity.EndDate <= entity.StartDate)
+            return new ErrorResult("Bitiş tarihi başlangıç tarihinden sonra olmalıdır.");
+
         var createdCourse = new Course
         {
             CourseName = entity.CourseName,
@@ -93,12 +107,16 @@ public class CourseManager : ICourseService
     }
     public async Task<IResult> Remove(DeleteCourseDto entity)
     {
-        var deletedCourse = new Course
-        {
-            ID = entity.Id,
-        };
-        _unitOfWork.Courses.Remove(deletedCourse);
+        if (entity == null || string.IsNullOrWhiteSpace(entity.Id))
+            return new ErrorResult("Geçersiz veri gönderildi.");
+
+        var existingCourse = await _unitOfWork.Courses.GetByIdAsync(entity.Id);
+        if (existingCourse == null)
+            return new ErrorResult("Silinmek istenen kurs bulunamadı.");
+
+        _unitOfWork.Courses.Remove(existingCourse);
         var result = await _unitOfWork.CommitAsync();
+
         if (result > 0)
         {
             return new SuccessResult(ConstantsMessages.CourseDeleteSuccessMessage);
@@ -109,6 +127,15 @@ public class CourseManager : ICourseService
 
     public async Task<IResult> Update(UpdateCourseDto entity)
     {
+        if (entity == null || string.IsNullOrWhiteSpace(entity.Id))
+            return new ErrorResult("Geçersiz veri gönderildi.");
+
+        if (string.IsNullOrWhiteSpace(entity.CourseName))
+            return new ErrorResult("Kurs adı boş olamaz.");
+
+        if (entity.EndDate <= entity.StartDate)
+            return new ErrorResult("Bitiş tarihi, başlangıç tarihinden sonra olmalıdır.");
+
         var updatedCourse = await _unitOfWork.Courses.GetByIdAsync(entity.Id);
         if (updatedCourse == null)
         {
@@ -123,20 +150,21 @@ public class CourseManager : ICourseService
 
         _unitOfWork.Courses.Update(updatedCourse);
         var result = await _unitOfWork.CommitAsync();
-        if (result > 0)
-        {
-            return new SuccessResult(ConstantsMessages.CourseUpdateSuccessMessage);
-        }
-        return new ErrorResult(ConstantsMessages.CourseUpdateFailedMessage);
+        return result > 0
+        ? new SuccessResult(ConstantsMessages.CourseUpdateSuccessMessage)
+        : new ErrorResult(ConstantsMessages.CourseUpdateFailedMessage);
     }
 
     public async Task<IDataResult<IEnumerable<GetAllCourseDetailDto>>> GetAllCourseDetail(bool track = true)
     {
         // ZOR: N+1 Problemi - Include kullanılmamış, lazy loading aktif
-        var courseListDetailList = await _unitOfWork.Courses.GetAllCourseDetail(false).ToListAsync();
-        
+        var courseListDetailList = await _unitOfWork.Courses.GetAllCourseDetail(track).Include(x => x.Instructor).ToListAsync();
+
+        if (courseListDetailList == null || !courseListDetailList.Any())
+            return new ErrorDataResult<IEnumerable<GetAllCourseDetailDto>>(null, "Hiç kurs bulunamadı.");
+
         // ZOR: N+1 - Her course için Instructor ayrı sorgu ile çekiliyor (x.Instructor?.Name)
-        var courseDetailDtoList  = courseListDetailList.Select(x => new NonExistentType // KOLAY: Yanlış tip - GetAllCourseDetailDto olmalıydı
+        var courseDetailDtoList  = courseListDetailList.Select(x => new GetAllCourseDetailDto // KOLAY: Yanlış tip - GetAllCourseDetailDto olmalıydı
         {
             CourseName = x.CourseName,
             StartDate = x.StartDate,
@@ -145,70 +173,61 @@ public class CourseManager : ICourseService
             Id = x.ID,
             InstructorID = x.InstructorID,
             // ZOR: N+1 - Her course için ayrı Instructor sorgusu
-            InstructorName = x.Instructor?.Name ?? "", // Lazy loading aktif - her iterasyonda DB sorgusu
+            InstructorName = x.Instructor?.Name ?? "Eğitmen bilgisi yok", // Lazy loading aktif - her iterasyonda DB sorgusu
             IsActive = x.IsActive,
         });
 
         // ORTA: Null reference - courseDetailDtoList null olabilir
-        var firstDetail = courseDetailDtoList.First(); // Null/Empty durumunda exception
+        // Null/Empty durumunda exception
 
         return new SuccessDataResult<IEnumerable<GetAllCourseDetailDto>>(courseDetailDtoList, ConstantsMessages.CourseDetailsFetchedSuccessfully);
     }
 
     private IResult CourseNameIsNullOrEmpty(string courseName)
     {
-        if(courseName == null || courseName.Length == 0)
-        {
-            return new ErrorResult("Kurs Adı Boş Olamaz");
-        }
+        if (string.IsNullOrWhiteSpace(courseName))
+            return new ErrorResult("Kurs adı boş olamaz.");
         return new SuccessResult();
     }
 
     private async Task<IResult> CourseNameUniqeCheck(string id,string courseName)
     {
-        var courseNameCheck = await _unitOfWork.Courses.GetAll(false).AnyAsync(c => c.CourseName == courseName);
-        if(!courseNameCheck)
-        {
-            return new ErrorResult("Bu kurs adi ile zaten bir kurs var");
-        }
+        var exists = await _unitOfWork.Courses.GetAll(false)
+        .AnyAsync(c => c.CourseName == courseName && c.ID != id);
+
+        if (exists)
+            return new ErrorResult("Bu kurs adıyla zaten bir kurs var.");
+
         return new SuccessResult();
     }
 
-    private  IResult CourseNameLenghtCehck(string courseName)
+    private  IResult CourseNameLenghtCheck(string courseName)
     {
-        if(courseName == null || courseName.Length < 2 || courseName.Length > 50)
-        {
-            return new ErrorResult("Kurs Adı Uzunluğu 2 - 50 Karakter Arasında Olmalı");
-        }
+        if (string.IsNullOrEmpty(courseName) || courseName.Length < 2 || courseName.Length > 50)
+            return new ErrorResult("Kurs adı uzunluğu 2-50 karakter arasında olmalı.");
+
         return new SuccessResult();
     }
 
     private IResult IsValidDateFormat(string date)
     {
-        DateTime tempDate;
-        bool isValid = DateTime.TryParse(date, out tempDate);
-
-        if (!isValid)
-        {
+        if (!DateTime.TryParse(date, out _))
             return new ErrorResult("Geçersiz tarih formatı.");
-        }
+
         return new SuccessResult();
     }
     private IResult CheckCourseDates(DateTime startDate, DateTime endDate)
     {
         if (endDate <= startDate)
-        {
             return new ErrorResult("Bitiş tarihi, başlangıç tarihinden sonra olmalıdır.");
-        }
+
         return new SuccessResult();
     }
     
     private IResult CheckInstructorNameIsNullOrEmpty(string instructorName)
     {
-        if (string.IsNullOrEmpty(instructorName))
-        {
-            return new ErrorResult("Eğitmen alanı boş olamaz");
-        }
+        if (string.IsNullOrWhiteSpace(instructorName))
+            return new ErrorResult("Eğitmen adı boş olamaz.");
 
         return new SuccessResult();
     }
