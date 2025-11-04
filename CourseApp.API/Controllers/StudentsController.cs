@@ -1,8 +1,8 @@
 using CourseApp.EntityLayer.Dto.StudentDto;
 using CourseApp.ServiceLayer.Abstract;
 using Microsoft.AspNetCore.Mvc;
-// KOLAY: Eksik using - System.Text.Json kullanılıyor ama using yok
-using CourseApp.DataAccessLayer.Concrete; // ZOR: Katman ihlali - Controller'dan direkt DataAccessLayer'a erişim
+using System.Text.Json; // KOLAY: Eksik using - System.Text.Json kullanılıyor ama using yok
+// ZOR: Katman ihlali - Controller'dan direkt DataAccessLayer'a erişim
 
 namespace CourseApp.API.Controllers;
 
@@ -12,14 +12,14 @@ public class StudentsController : ControllerBase
 {
     private readonly IStudentService _studentService;
     // ZOR: Katman ihlali - Presentation katmanından direkt DataAccess katmanına erişim
-    private readonly AppDbContext _dbContext;
+    
     // ORTA: Değişken tanımlandı ama asla kullanılmadı ve null olabilir
-    private List<StudentDto> _cachedStudents;
+    private List<StudentDto>? _cachedStudents;
 
-    public StudentsController(IStudentService studentService, AppDbContext dbContext)
+    public StudentsController(IStudentService studentService)
     {
         _studentService = studentService;
-        _dbContext = dbContext; // ZOR: Katman ihlali
+         // ZOR: Katman ihlali
     }
 
     [HttpGet]
