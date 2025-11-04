@@ -13,6 +13,7 @@ public class InstructorManager : IInstructorService
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
+
     public InstructorManager(IUnitOfWork unitOfWork, IMapper mapper)
     {
         _unitOfWork = unitOfWork;
@@ -21,73 +22,78 @@ public class InstructorManager : IInstructorService
 
     public async Task<IDataResult<IEnumerable<GetAllInstructorDto>>> GetAllAsync(bool track = true)
     {
-        var instructorList = await _unitOfWork.Instructors.GetAll(false).ToListAsync();
-        var instructorListMapping = _mapper.Map<IEnumerable<GetAllInstructorDto>>(instructorList);
-        if (!instructorList.Any())
-        {
+        var list = await _unitOfWork.Instructors.GetAll(track).ToListAsync();
+        if (list == null || !list.Any())
             return new ErrorDataResult<IEnumerable<GetAllInstructorDto>>(null, ConstantsMessages.InstructorListFailedMessage);
-        }
-        return new SuccessDataResult<IEnumerable<GetAllInstructorDto>>(instructorListMapping, ConstantsMessages.InstructorListSuccessMessage);
+
+        var mapped = _mapper.Map<IEnumerable<GetAllInstructorDto>>(list);
+        return new SuccessDataResult<IEnumerable<GetAllInstructorDto>>(mapped, ConstantsMessages.InstructorListSuccessMessage);
     }
 
     public async Task<IDataResult<GetByIdInstructorDto>> GetByIdAsync(string id, bool track = true)
     {
-        // ORTA: Null check eksik - id null/empty olabilir
-        // ORTA: Index out of range - id çok kısa olabilir
-        var idPrefix = id[5]; // IndexOutOfRangeException riski
-        
-        var hasInstructor = await _unitOfWork.Instructors.GetByIdAsync(id, false);
-        // ORTA: Null reference - hasInstructor null olabilir ama kontrol edilmiyor
-        var hasInstructorMapping = _mapper.Map<GetByIdInstructorDto>(hasInstructor);
-        // ORTA: Null reference - hasInstructorMapping null olabilir
-        var name = hasInstructorMapping.Name; // Null reference riski
-        return new SuccessDataResult<GetByIdInstructorDto>(hasInstructorMapping, ConstantsMessages.InstructorGetByIdSuccessMessage);
+        if (string.IsNullOrWhiteSpace(id))
+            return new ErrorDataResult<GetByIdInstructorDto>(null, "Geçersiz eğitmen ID değeri.");
+
+        var entity = await _unitOfWork.Instructors.GetByIdAsync(id, track);
+        if (entity == null)
+            return new ErrorDataResult<GetByIdInstructorDto>(null, "Eğitmen bulunamadı.");
+
+        var mapped = _mapper.Map<GetByIdInstructorDto>(entity);
+        return new SuccessDataResult<GetByIdInstructorDto>(mapped, ConstantsMessages.InstructorGetByIdSuccessMessage);
     }
 
     public async Task<IResult> CreateAsync(CreatedInstructorDto entity)
     {
-        var createdInstructor = _mapper.Map<Instructor>(entity);
-        await _unitOfWork.Instructors.CreateAsync(createdInstructor);
+        if (entity == null)
+            return new ErrorResult("Geçersiz veri gönderildi.");
+
+        var mapped = _mapper.Map<Instructor>(entity);
+        await _unitOfWork.Instructors.CreateAsync(mapped);
+
         var result = await _unitOfWork.CommitAsync();
-        if(createdInstructor == null) return new ErrorResult("Null");
-        if (result > 0)
-        {
-            return new SuccessResult(ConstantsMessages.InstructorCreateSuccessMessage);
-        }
-        return new ErrorResult(ConstantsMessages.InstructorCreateFailedMessage);
+        return result > 0
+            ? new SuccessResult(ConstantsMessages.InstructorCreateSuccessMessage)
+            : new ErrorResult(ConstantsMessages.InstructorCreateFailedMessage);
     }
 
     public async Task<IResult> Remove(DeletedInstructorDto entity)
     {
-        var deletedInstructor = _mapper.Map<Instructor>(entity);
-        _unitOfWork.Instructors.Remove(deletedInstructor);
+        if (entity == null || string.IsNullOrWhiteSpace(entity.Id))
+            return new ErrorResult("Geçersiz silme verisi.");
+
+        var existing = await _unitOfWork.Instructors.GetByIdAsync(entity.Id);
+        if (existing == null)
+            return new ErrorResult("Silinecek eğitmen bulunamadı.");
+
+        _unitOfWork.Instructors.Remove(existing);
         var result = await _unitOfWork.CommitAsync();
-        if (result > 0)
-        {
-            return new SuccessResult(ConstantsMessages.InstructorDeleteSuccessMessage);
-        }
-        return new ErrorResult(ConstantsMessages.InstructorDeleteFailedMessage);
+
+        return result > 0
+            ? new SuccessResult(ConstantsMessages.InstructorDeleteSuccessMessage)
+            : new ErrorResult(ConstantsMessages.InstructorDeleteFailedMessage);
     }
 
     public async Task<IResult> Update(UpdatedInstructorDto entity)
     {
-        // ORTA: Null check eksik - entity null olabilir
-        var updatedInstructor = _mapper.Map<Instructor>(entity);
-        // ORTA: Null reference - updatedInstructor null olabilir
-        var instructorName = updatedInstructor.Name; // Null reference riski
-        
-        _unitOfWork.Instructors.Update(updatedInstructor);
-        var result = await _unitOfWork.CommitAsync();
-        if (result > 0)
-        {
-            return new SuccessResult(ConstantsMessages.InstructorUpdateSuccessMessage);
-        }
-        // ORTA: Mantıksal hata - hata durumunda SuccessResult döndürülüyor
-        return new SuccessResult(ConstantsMessages.InstructorUpdateFailedMessage); // HATA: ErrorResult olmalıydı
-    }
+        if (entity == null || string.IsNullOrWhiteSpace(entity.Id))
+            return new ErrorResult("Geçersiz güncelleme verisi.");
 
-    private void UseNonExistentNamespace()
-    {
-        var x = NonExistentNamespace.NonExistentClass.Create();
+        var existing = await _unitOfWork.Instructors.GetByIdAsync(entity.Id);
+        if (existing == null)
+            return new ErrorResult("Güncellenecek eğitmen bulunamadı.");
+
+        existing.Name = entity.Name;
+        existing.Surname = entity.Surname;
+        existing.Email = entity.Email;
+        existing.Professions = entity.Professions;
+        existing.PhoneNumber = entity.PhoneNumber;
+
+        _unitOfWork.Instructors.Update(existing);
+        var result = await _unitOfWork.CommitAsync();
+
+        return result > 0
+            ? new SuccessResult(ConstantsMessages.InstructorUpdateSuccessMessage)
+            : new ErrorResult(ConstantsMessages.InstructorUpdateFailedMessage);
     }
 }
