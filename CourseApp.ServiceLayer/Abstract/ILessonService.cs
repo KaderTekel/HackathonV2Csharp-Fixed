@@ -1,5 +1,4 @@
-﻿using CourseApp.EntityLayer.Dto.ExamResultDto;
-using CourseApp.EntityLayer.Dto.LessonDto;
+﻿using CourseApp.EntityLayer.Dto.LessonDto;
 using CourseApp.ServiceLayer.Utilities.Result;
 
 namespace CourseApp.ServiceLayer.Abstract;
