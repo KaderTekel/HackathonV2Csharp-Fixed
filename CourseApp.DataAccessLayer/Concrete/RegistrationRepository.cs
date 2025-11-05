@@ -8,6 +8,7 @@ public class RegistrationRepository : GenericRepository<Registration>, IRegistra
 {
     private readonly AppDbContext _context;
     private DbSet<Registration> _dbSet => _context.Set<Registration>();
+
     public RegistrationRepository(AppDbContext context) : base(context)
     {
         _context = context;
@@ -15,23 +16,20 @@ public class RegistrationRepository : GenericRepository<Registration>, IRegistra
 
     public IQueryable<Registration> GetAllRegistrationDetail(bool track = true)
     {
-        //var query = _context.Set<Registration>().AsQueryable();
         var query = _dbSet.AsQueryable();
         if (!track)
-        {
-            query = query.AsNoTracking();   
-        }
+            query = query.AsNoTracking();
+
         return query.Include(r => r.Course)
                     .Include(r => r.Student);
     }
 
-    public async Task<Registration> GetByIdRegistrationDetailAsync(string id,bool track = true)
+    public async Task<Registration> GetByIdRegistrationDetailAsync(string id, bool track = true)
     {
         var query = _dbSet.AsQueryable();
         if (!track)
-        {
             query = query.AsNoTracking();
-        }
+
         return (await query.Include(r => r.Course)
                            .Include(r => r.Student)
                            .FirstOrDefaultAsync(r => r.ID == id))!;
