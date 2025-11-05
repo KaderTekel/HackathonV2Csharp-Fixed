@@ -36,9 +36,4 @@ public class ExamResultRepository : GenericRepository<ExamResult>, IExamResultRe
                             .Include(er => er.Exam)
                             .FirstOrDefaultAsync(er => er.ID == id))!;
     }
-
-    private void UseMissingType()
-    {
-        var helper = ExamResultHelper.Process();
-    }
 }
